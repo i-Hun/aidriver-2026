@@ -1,0 +1,14 @@
+{
+  "name": "aidriver-2026",
+  "private": true,
+  "type": "module",
+  "description": "AI Driver & RecSys 2026 talks: a Nuxt layer of nagornyy.me/stories/aidriver-2026",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "test": "node scripts/test-aidriver.mjs"
+  },
+  "dependencies": {
+    "nuxt": "^4.6.2"
+  }
+}

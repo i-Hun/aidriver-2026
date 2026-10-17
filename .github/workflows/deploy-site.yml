@@ -1,0 +1,40 @@
+# After a merge into main, ask the site repository to pick up the new revision.
+# The site repo (private) runs its editorial check and bumps the submodule; Netlify rebuilds.
+# SITE_DEPLOY_KEY: SSH deploy key with write access to the site repository only.
+# The site's workflow aidriver-2026-bump reads aidriver-2026.rev from the trigger branch.
+name: deploy-site
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  trigger:
+    if: github.repository == 'i-Hun/aidriver-2026'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push the trigger branch to the site repository
+        env:
+          SITE_DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SITE_DEPLOY_KEY" > ~/.ssh/site && chmod 600 ~/.ssh/site
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/site -o IdentitiesOnly=yes"
+          # GitHub runs the workflow from the pushed commit's tree, so the trigger commit sits on top
+          # of the site's main (its bump workflow included), not on an orphan branch.
+          git init -q site && cd site
+          git fetch -q --depth=1 git@github.com:i-Hun/pwp-c2.git main
+          git checkout -q FETCH_HEAD
+          git config user.name "Oleg Nagornyy"
+          git config user.email "nagornyy.o@gmail.com"
+          printf '%s\n' "$SHA" > aidriver-2026.rev
+          git add aidriver-2026.rev
+          git commit -qm "aidriver-2026: request bump to ${SHA:0:7}"
+          git push -f git@github.com:i-Hun/pwp-c2.git HEAD:refs/heads/aidriver-2026-bump
