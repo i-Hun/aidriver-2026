@@ -66,29 +66,29 @@ useHead(() => ({
 </script>
 
 <template>
-  <div class="ad">
-    <header class="ad-hero">
-      <p class="ad-eyebrow">Конференция · {{ event.date }}</p>
+  <div class="conf">
+    <header class="conf-hero">
+      <p class="conf-eyebrow">Конференция · {{ event.date }}</p>
       <h1>{{ event.title }}</h1>
-      <p class="ad-lead">{{ event.subtitle }}</p>
-      <ul class="ad-meta">
+      <p class="conf-lead">{{ event.subtitle }}</p>
+      <ul class="conf-meta">
         <li v-if="event.place">{{ event.place }}</li>
         <li>{{ stats.talks }} докладов · два зала</li>
         <li v-if="updated">обновлено {{ updated }} MSK</li>
-        <li v-if="live" class="ad-live">идёт</li>
+        <li v-if="live" class="conf-live">идёт</li>
       </ul>
-      <div class="ad-actions">
-        <a class="ad-btn" :href="event.programUrl" target="_blank" rel="noopener">Программа конференции</a>
-        <a class="ad-btn ad-btn-ghost" :href="event.channelUrl" target="_blank" rel="noopener">Канал @ai_n_ns</a>
-        <NuxtLink class="ad-btn ad-btn-ghost" to="/stories/recsys-2026">Путеводитель по RecSys 2026</NuxtLink>
+      <div class="conf-actions">
+        <a class="conf-btn" :href="event.programUrl" target="_blank" rel="noopener">Программа конференции</a>
+        <a class="conf-btn conf-btn-ghost" :href="event.channelUrl" target="_blank" rel="noopener">Канал @ai_n_ns</a>
+        <NuxtLink class="conf-btn conf-btn-ghost" to="/stories/recsys-2026">Путеводитель по RecSys 2026</NuxtLink>
       </div>
-      <p class="ad-note">{{ event.sourceNote }}</p>
+      <p class="conf-note">{{ event.sourceNote }}</p>
     </header>
 
-    <section class="ad-controls" aria-label="Фильтры">
-      <div class="ad-tabs" role="tablist">
+    <section class="conf-controls" aria-label="Фильтры">
+      <div class="conf-tabs" role="tablist">
         <button
-          class="ad-tab"
+          class="conf-tab"
           :class="{ 'is-on': hall === 'all' }"
           role="tab"
           :aria-selected="hall === 'all'"
@@ -99,7 +99,7 @@ useHead(() => ({
         <button
           v-for="h in halls"
           :key="h.id"
-          class="ad-tab"
+          class="conf-tab"
           :class="{ 'is-on': hall === h.id }"
           role="tab"
           :aria-selected="hall === h.id"
@@ -110,54 +110,54 @@ useHead(() => ({
       </div>
       <input
         v-model="query"
-        class="ad-search"
+        class="conf-search"
         type="search"
         placeholder="Поиск по докладу, спикеру, тексту"
         aria-label="Поиск по докладам"
       />
     </section>
 
-    <p class="ad-count">
+    <p class="conf-count">
       {{ filtered.length }} <template v-if="filtered.length === 1">доклад</template>
       <template v-else-if="filtered.length > 1 && filtered.length < 5">доклада</template>
       <template v-else>докладов</template>
     </p>
 
-    <section class="ad-grid">
-      <article v-for="t in filtered" :key="t.slug" class="ad-card">
-        <div class="ad-card-top">
-          <span class="ad-time">{{ t.time }}</span>
-          <span class="ad-hall">{{ t.hallLabel }}</span>
+    <section class="conf-grid">
+      <article v-for="t in filtered" :key="t.slug" class="conf-card">
+        <div class="conf-card-top">
+          <span class="conf-time">{{ t.time }}</span>
+          <span class="conf-hall">{{ t.hallLabel }}</span>
         </div>
         <h2>{{ t.title }}</h2>
-        <p class="ad-speaker">
+        <p class="conf-speaker">
           {{ t.speaker }}<template v-if="t.org"> · {{ t.org }}</template>
         </p>
-        <p class="ad-preview">{{ t.lead }}</p>
+        <p class="conf-preview">{{ t.lead }}</p>
 
-        <details class="ad-more">
+        <details class="conf-more">
           <summary>Полный разбор</summary>
-          <div v-for="it in t.items" :key="it.label" class="ad-item">
+          <div v-for="it in t.items" :key="it.label" class="conf-item">
             <h3>{{ it.label }}</h3>
             <p v-html="it.html"></p>
           </div>
         </details>
 
-        <div class="ad-links">
+        <div class="conf-links">
           <a v-if="t.post" :href="t.post.url" target="_blank" rel="noopener">Пост в канале →</a>
-          <span v-if="t.tags && t.tags.length" class="ad-tags">
-            <span v-for="tag in t.tags" :key="tag" class="ad-tag">#{{ tag }}</span>
+          <span v-if="t.tags && t.tags.length" class="conf-tags">
+            <span v-for="tag in t.tags" :key="tag" class="conf-tag">#{{ tag }}</span>
           </span>
         </div>
       </article>
     </section>
 
-    <p v-if="!filtered.length" class="ad-empty">Ничего не нашлось — сбросьте фильтр или запрос.</p>
+    <p v-if="!filtered.length" class="conf-empty">Ничего не нашлось — сбросьте фильтр или запрос.</p>
   </div>
 </template>
 
 <style scoped>
-.ad {
+.conf {
   max-width: var(--page);
   margin: 0 auto;
   padding: var(--space-xl) var(--space-lg) calc(var(--space-xl) * 2);
@@ -167,11 +167,11 @@ useHead(() => ({
   line-height: var(--leading-body);
 }
 
-.ad-hero {
+.conf-hero {
   padding: var(--space-xl) 0 var(--space-lg);
   border-bottom: 1px solid var(--color-rule);
 }
-.ad-eyebrow {
+.conf-eyebrow {
   margin: 0 0 var(--space-sm);
   color: var(--color-accent);
   font-size: var(--text-label);
@@ -179,19 +179,19 @@ useHead(() => ({
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.ad-hero h1 {
+.conf-hero h1 {
   margin: 0 0 var(--space-md);
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
-.ad-lead {
+.conf-lead {
   max-width: 46rem;
   margin: 0 0 var(--space-md);
   color: var(--color-muted);
   font-size: var(--text-body);
 }
-.ad-meta {
+.conf-meta {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs) var(--space-lg);
@@ -201,24 +201,24 @@ useHead(() => ({
   color: var(--color-muted);
   font-size: var(--text-meta);
 }
-.ad-meta li + li::before {
+.conf-meta li + li::before {
   content: "·";
   margin-right: 6px;
   color: var(--color-rule);
 }
-.ad-live {
+.conf-live {
   color: var(--color-live);
   font-weight: 600;
 }
-.ad-live::before {
+.conf-live::before {
   content: "● ";
 }
-.ad-actions {
+.conf-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
-.ad .ad-btn {
+.conf .conf-btn {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
@@ -232,23 +232,23 @@ useHead(() => ({
   text-decoration: none;
   box-shadow: var(--shadow-accent);
 }
-.ad .ad-btn-ghost {
+.conf .conf-btn-ghost {
   background: transparent;
   color: var(--color-ink);
   border: 1px solid var(--color-muted);
   box-shadow: none;
 }
-.ad-btn:hover {
+.conf-btn:hover {
   transform: translateY(-1px);
 }
-.ad-note {
+.conf-note {
   max-width: 46rem;
   margin: var(--space-lg) 0 0;
   color: var(--color-muted);
   font-size: var(--text-meta);
 }
 
-.ad-controls {
+.conf-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -256,12 +256,12 @@ useHead(() => ({
   gap: var(--space-md);
   padding: var(--space-lg) 0 var(--space-sm);
 }
-.ad-tabs {
+.conf-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs);
 }
-.ad-tab {
+.conf-tab {
   min-height: var(--tap);
   padding: 0 var(--space-md);
   border: 1px solid var(--color-rule);
@@ -272,13 +272,13 @@ useHead(() => ({
   font-size: var(--text-button);
   cursor: pointer;
 }
-.ad-tab.is-on {
+.conf-tab.is-on {
   border-color: transparent;
   background: var(--color-accent);
   color: #FFFFFF;
   font-weight: 600;
 }
-.ad-search {
+.conf-search {
   flex: 1 1 18rem;
   min-height: var(--tap);
   padding: 0 var(--space-md);
@@ -289,21 +289,21 @@ useHead(() => ({
   font: inherit;
   font-size: var(--text-button);
 }
-.ad-search::placeholder {
+.conf-search::placeholder {
   color: var(--color-muted);
 }
-.ad-count {
+.conf-count {
   margin: var(--space-sm) 0 var(--space-md);
   color: var(--color-muted);
   font-size: var(--text-meta);
 }
 
-.ad-grid {
+.conf-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   gap: var(--space-md);
 }
-.ad-card {
+.conf-card {
   display: flex;
   flex-direction: column;
   padding: var(--space-lg);
@@ -312,7 +312,7 @@ useHead(() => ({
   background: var(--color-surface);
   box-shadow: var(--shadow-1);
 }
-.ad-card-top {
+.conf-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -320,38 +320,38 @@ useHead(() => ({
   margin-bottom: var(--space-sm);
   font-size: var(--text-label);
 }
-.ad-time {
+.conf-time {
   font-variant-numeric: tabular-nums;
   color: var(--color-accent);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
-.ad-hall {
+.conf-hall {
   padding: 2px 10px;
   border-radius: var(--radius-pill);
   background: var(--color-tint);
   color: var(--color-ink);
 }
-.ad-card h2 {
+.conf-card h2 {
   margin: 0 0 var(--space-xs);
   font-size: var(--text-h1);
   line-height: 1.28;
   letter-spacing: -0.01em;
 }
-.ad-speaker {
+.conf-speaker {
   margin: 0 0 var(--space-md);
   color: var(--color-muted);
   font-size: var(--text-meta);
 }
-.ad-preview {
+.conf-preview {
   margin: 0 0 var(--space-md);
 }
-.ad-more {
+.conf-more {
   margin-top: auto;
   border-top: 1px solid var(--color-rule);
   padding-top: var(--space-sm);
 }
-.ad-more summary {
+.conf-more summary {
   min-height: var(--tap);
   display: flex;
   align-items: center;
@@ -361,18 +361,18 @@ useHead(() => ({
   cursor: pointer;
   list-style: none;
 }
-.ad-more summary::-webkit-details-marker {
+.conf-more summary::-webkit-details-marker {
   display: none;
 }
-.ad-more summary::after {
+.conf-more summary::after {
   content: "+";
   margin-left: auto;
   font-size: 1.1rem;
 }
-.ad-more[open] summary::after {
+.conf-more[open] summary::after {
   content: "−";
 }
-.ad-item h3 {
+.conf-item h3 {
   margin: var(--space-md) 0 var(--space-xs);
   color: var(--color-muted);
   font-size: var(--text-label);
@@ -380,17 +380,17 @@ useHead(() => ({
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.ad-item p {
+.conf-item p {
   margin: 0;
   font-size: var(--text-body-sm);
 }
-.ad-item :deep(code) {
+.conf-item :deep(code) {
   padding: 1px 5px;
   border-radius: 6px;
   background: var(--color-tint);
   font-size: 0.92em;
 }
-.ad-links {
+.conf-links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -399,30 +399,30 @@ useHead(() => ({
   margin-top: var(--space-md);
   font-size: var(--text-meta);
 }
-.ad-links a {
+.conf-links a {
   color: var(--color-accent);
   font-weight: 600;
   text-decoration: none;
 }
-.ad-tags {
+.conf-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.ad-tag {
+.conf-tag {
   color: var(--color-muted);
 }
-.ad-empty {
+.conf-empty {
   padding: var(--space-xl) 0;
   color: var(--color-muted);
 }
 
 @media (max-width: 640px) {
-  .ad {
+  .conf {
     padding: var(--space-lg) var(--space-md) var(--space-xl);
   }
-  .ad-btn,
-  .ad-search {
+  .conf-btn,
+  .conf-search {
     width: 100%;
     justify-content: center;
   }
