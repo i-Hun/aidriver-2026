@@ -210,7 +210,10 @@ def main() -> None:
         hall = match_hall(p, halls)
         body = paragraphs(p["body"])
         body = [b for b in body if not re.match(r"^\*\*\[.+\]\(.+\)\*\*$", b)]
-        if body and body[0].startswith(p["speaker"]):
+        intro = re.compile(r"—\s*(?:Большой|Малый) зал, \d{1,2}:\d{2}–\d{1,2}:\d{2} MSK\.?$")
+        if body and ("на конференции AI Driver" in body[0]
+                     or intro.search(body[0])
+                     or body[0].startswith(p["speaker"].split(",")[0])):
             body = body[1:]
         tags = p.get("tags", [])
         talks.append({
