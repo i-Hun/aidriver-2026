@@ -172,6 +172,34 @@ def match_hall(post: dict, talks: list[dict]) -> str:
     return best if best_score >= 0.6 else ""
 
 
+def make_preview(blocks: list[str], limit: int = 700) -> str:
+    """Превью карточки: осмысленный текст до границы предложения, без лид-инов.
+
+    Лид-ин вида «**Тренды.**» отбрасывается: он не несёт содержания без списка,
+    который идёт следом. Обрезка — по последней точке в пределах лимита, иначе
+    по границе слова с многоточием; обрыв на полуслове не допускается.
+    """
+    parts = []
+    for b in blocks:
+        t = re.sub(r"[`*]", "", b).strip()
+        t = re.sub(r"^—\s*", "", t)
+        if not t or re.fullmatch(r"[^.]{1,40}\.", t):
+            continue
+        parts.append(t)
+    text = " ".join(parts).strip()
+    if not text:
+        return ""
+    text = text[0].upper() + text[1:]
+    if len(text) <= limit:
+        return text
+    # Первое полное предложение содержательного текста — даже если оно длиннее лимита:
+    # обрыв на полуслове в карточке читается как ошибка вёрстки.
+    ends = [m.end() for m in re.finditer(r"[.!?](?=\s)", text[:700])]
+    if ends and ends[0] >= 120:
+        return text[: ends[0]]
+    return text[:limit].rsplit(" ", 1)[0].rstrip(",;:—-") + "…"
+
+
 def paragraphs(lines: list[str]) -> list[str]:
     """Строки поста → абзацы: пустая строка разделяет, пункты списка — отдельные строки."""
     out: list[str] = []
@@ -227,12 +255,11 @@ def main() -> None:
             "messageId": p["messageId"],
             "url": f"https://t.me/ai_n_ns/{p['messageId']}",
             "bodyHtml": body_to_html(body),
-            "preview": next((re.sub(r"^—\s*", "", re.sub(r"[`*]", "", b))
-                             for b in body if len(b) > 120),
-                             re.sub(r"^—\s*", "", re.sub(r"[`*]", "", body[0])) if body else "")[:300],
+            "preview": make_preview(body),
             "tags": tags[:6],
         })
     talks.sort(key=lambda t: (t["time"].split("–")[0], t["hall"] != "big"))
+
 
     now = datetime.now(MSK)
     live = now.date().isoformat() == "2026-10-17" and now.hour * 60 + now.minute < 17 * 60 + 25

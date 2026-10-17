@@ -68,7 +68,8 @@ for (const t of data.talks) {
   assert.doesNotMatch(t.bodyHtml, /\*\*|\]\(/, where + ": в HTML осталась markdown-разметка");
 
   assert.ok(t.preview.length > 0, where + ": пустой preview");
-  assert.ok(t.preview.length <= 300, where + ": preview длиннее 300 символов");
+  assert.ok(t.preview.length <= 701, where + ": preview длиннее 700 символов");
+  assert.match(t.preview, /[.!?…]$/, where + ": preview обрывается на полуслове");
   assert.doesNotMatch(t.preview, /[`*]/, where + ": в preview осталась разметка");
   assert.doesNotMatch(t.preview, /^—/, where + ": preview начинается с тире");
 
