@@ -8,7 +8,7 @@
   "channelUrl": "https://t.me/ai_n_ns",
   "sourceNote": "Тексты постов — из канала @ai_n_ns, без правок; исходная запись докладов расшифрована faster-whisper large-v3-turbo, числа — только прозвучавшие."
  },
- "updated": "2026-10-17T16:19+03:00",
+ "updated": "2026-10-17T16:22+03:00",
  "live": true,
  "stats": {
   "talks": 18,
