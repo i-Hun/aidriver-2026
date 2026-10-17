@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Собирает данные раздела /stories/aidriver-2026 из волта.
 
-Источник: ~/.hermes/workspace/notes/projects/Статьи/AI Driver & RecSys 2026 — доклады.md
-          ~/.hermes/workspace/notes/projects/Статьи/AI Driver & RecSys 2026 — посты канала.md
+Единица контента — ОПУБЛИКОВАННЫЙ ПОСТ канала @ai_n_ns, а не внутренний разбор:
+на сайте должен быть текст с канала.
+
+Источник: ~/.hermes/workspace/notes/projects/Статьи/AI Driver & RecSys 2026 — посты канала.md
           (другой каталог заметок — переменная окружения AIDRIVER_NOTES)
+          зал для поста берётся из файла «… — доклады.md» по message_id.
 
 Выход:   data/aidriver-2026.json в корне этого репозитория (страница импортирует его при сборке)
 
 Запуск:  python3 scripts/aidriver_site_data.py [--check]
-         --check  не писать файл, только напечатать статистику и расхождения.
 """
 from __future__ import annotations
 
@@ -28,30 +30,19 @@ OUT = Path(__file__).resolve().parent.parent / "data/aidriver-2026.json"
 MSK = timezone(timedelta(hours=3))
 
 HALLS = {"big": "Большой зал", "small": "Малый зал"}
-LABEL_ORDER = [
-    "Что показали",
-    "Что ещё прозвучало",
-    "Метод/архитектура",
-    "Бенчмарки",
-    "Вопросы и направления",
-    "Что взять в наш проект",
-    "Оговорки",
-    "Формулировка",
-]
 
-HEAD_RE = re.compile(r"^### (.+?) — (.+?) \((big|small), (\d{1,2}:\d{2})–(\d{1,2}:\d{2}) MSK\)\s*$")
-ITEM_RE = re.compile(r"^- \*\*(.+?):\*\* (.+)$")
-TAG_RE = re.compile(r"^#([A-Za-zА-Яа-я0-9_]+)")
 POST_HEAD_RE = re.compile(r"^## (\d{1,2}:\d{2})–(\d{1,2}:\d{2}) MSK · (.+)$")
 POST_ID_RE = re.compile(r"^message_id (\d+)")
+TALK_HEAD_RE = re.compile(r"^### .+ \((big|small), \d{1,2}:\d{2}–\d{1,2}:\d{2} MSK\)\s*$")
+TALK_POST_RE = re.compile(r"^\s*-\s+\*\*Пост в канале:\*\*\s*\[?(\d+)\)?")
+LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
+CODE_RE = re.compile(r"`([^`]+)`")
+TAG_LINE_RE = re.compile(r"^#\S")
 
 
 def split_people(s: str) -> tuple[str, str]:
-    """«Алексей Васильев, Sber AI Lab» → (спикер, организация).
-
-    Пленарка перечисляет нескольких людей — тогда организация пустая,
-    а строка спикеров остаётся целиком.
-    """
+    """«Алексей Васильев, Sber AI Lab» → (спикер, организация)."""
     depth = 0
     parts, cur = [], ""
     for ch in s:
@@ -70,150 +61,207 @@ def split_people(s: str) -> tuple[str, str]:
     return s.strip(), ""
 
 
-def render_inline(text: str) -> str:
-    """Экранирует HTML и превращает `code` в <code>code</code>."""
+def inline_md(text: str) -> str:
+    """Экранирует HTML и превращает inline-markdown поста в безопасный HTML."""
     out = html.escape(text, quote=False)
-    return re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
+    out = LINK_RE.sub(lambda m: f'<a href="{html.escape(m.group(2), quote=True)}" '
+                                 f'target="_blank" rel="noopener">{m.group(1)}</a>', out)
+    out = BOLD_RE.sub(r"<strong>\1</strong>", out)
+    out = CODE_RE.sub(r"<code>\1</code>", out)
+    return out
 
 
-def parse_talks() -> list[dict]:
-    lines = TALKS_MD.read_text(encoding="utf-8").splitlines()
-    talks: list[dict] = []
-    cur: dict | None = None
-    for line in lines:
-        m = HEAD_RE.match(line)
-        if m:
-            title, people, hall, t0, t1 = m.groups()
-            speaker, org = split_people(people)
-            cur = {
-                "slug": f"{hall}-{t0.replace(':', '')}",
-                "title": title.strip(),
-                "speaker": speaker,
-                "org": org,
-                "hall": hall,
-                "hallLabel": HALLS[hall],
-                "time": f"{t0}–{t1}",
-                "items": [],
-                "tags": [],
-            }
-            talks.append(cur)
+def body_to_html(paragraphs: list[str]) -> str:
+    """Абзацы поста → HTML. Строки «— …» собираются в список."""
+    blocks: list[str] = []
+    bullets: list[str] = []
+
+    def flush() -> None:
+        nonlocal bullets
+        if bullets:
+            blocks.append("<ul>" + "".join(f"<li>{b}</li>" for b in bullets) + "</ul>")
+            bullets = []
+
+    for para in paragraphs:
+        text = para.strip()
+        if not text:
             continue
-        if cur is None:
+        if text.startswith("— "):
+            bullets.append(inline_md(text[2:].strip()))
             continue
-        if line.startswith("#") and " " not in line:
-            for tag in TAG_RE.findall(line):
-                if tag not in cur["tags"]:
-                    cur["tags"].append(tag)
-            continue
-        mi = ITEM_RE.match(line)
-        if mi:
-            label, text = mi.groups()
-            cur["items"].append({"label": label.strip(), "text": text.strip(),
-                                 "html": render_inline(text.strip())})
-    for t in talks:
-        order = {lab: i for i, lab in enumerate(LABEL_ORDER)}
-        t["items"].sort(key=lambda it: order.get(it["label"], 99))
-        # карточка на сайте показывает «Что показали» целиком и остальное по раскрытию
-        lead = next((it for it in t["items"] if it["label"] == "Что показали"), None)
-        lead_text = re.sub(r"[`*]", "", lead["text"] if lead else "")
-        if len(lead_text) > 320:
-            head = lead_text[:320]
-            dot = max(head.rfind(". "), head.rfind("! "), head.rfind("? "))
-            lead_text = (head[: dot + 1] if dot > 120 else head.rsplit(" ", 1)[0].rstrip(",;:") + "…")
-        t["lead"] = lead_text
-    return talks
+        flush()
+        blocks.append(f"<p>{inline_md(text)}</p>")
+    flush()
+    return "".join(blocks)
 
 
 def parse_posts() -> list[dict]:
+    """Посты канала: заголовок, спикер, время, message_id, тело и хэштеги."""
     if not POSTS_MD.exists():
         return []
     lines = POSTS_MD.read_text(encoding="utf-8").splitlines()
     posts: list[dict] = []
     cur: dict | None = None
+    body: list[str] = []
+    in_body = False
     for line in lines:
         m = POST_HEAD_RE.match(line)
         if m:
+            if cur is not None:
+                cur["body"] = body
+                posts.append(cur)
             t0, t1, rest = m.groups()
             title, _, people = rest.partition(" — ")
-            cur = {"time": f"{t0}–{t1}", "title": title.strip(),
-                   "people": people.strip(), "messageId": None}
-            posts.append(cur)
+            speaker, org = split_people(people)
+            cur = {"time": f"{t0}–{t1}", "t0": t0, "title": title.strip(),
+                   "people": people.strip(), "speaker": speaker, "org": org,
+                   "messageId": None, "rawBody": []}
+            body = []
+            in_body = False
             continue
         if cur is None:
             continue
         mi = POST_ID_RE.match(line)
         if mi:
             cur["messageId"] = int(mi.group(1))
+            in_body = True
+            continue
+        if not in_body:
+            continue
+        if TAG_LINE_RE.match(line):
+            cur.setdefault("tags", []).extend(
+                t.lstrip("#") for t in re.findall(r"#[A-Za-zА-Яа-я0-9_]+", line))
+            continue
+        body.append(line)
+    if cur is not None:
+        cur["body"] = body
+        posts.append(cur)
     return [p for p in posts if p["messageId"]]
 
 
-def norm(s: str) -> str:
-    return re.sub(r"[^a-zа-я0-9]+", " ", s.lower()).strip()
+def talk_index() -> list[dict]:
+    """Доклады из файла разборов: заголовок, время, зал (в постах зала нет)."""
+    if not TALKS_MD.exists():
+        return []
+    out: list[dict] = []
+    for line in TALKS_MD.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^### (.+?) — .+ \((big|small), (\d{1,2}:\d{2})–(\d{1,2}:\d{2}) MSK\)\s*$", line)
+        if m:
+            out.append({"title": m.group(1).strip(), "hall": m.group(2),
+                        "time": f"{m.group(3)}–{m.group(4)}"})
+    return out
 
 
 def tokens(s: str) -> set[str]:
-    return {w for w in norm(s).split() if len(w) > 2}
+    return {w for w in re.sub(r"[^a-zа-я0-9]+", " ", s.lower()).split() if len(w) > 2}
 
 
-def match_post(talk: dict, posts: list[dict]) -> dict | None:
-    """Пост сопоставляется по пересечению слов заголовка и по времени."""
-    best, best_score = None, 0.0
-    tt = tokens(talk["title"])
-    for p in posts:
-        pt = tokens(p["title"])
-        if not tt or not pt:
+def match_hall(post: dict, talks: list[dict]) -> str:
+    """Зал — по лучшему совпадению заголовка поста с заголовком доклада."""
+    best, best_score = "", 0.0
+    pt = tokens(post["title"])
+    for t in talks:
+        tt = tokens(t["title"])
+        if not pt or not tt:
             continue
-        score = len(tt & pt) / min(len(tt), len(pt))
-        if p["time"] == talk["time"]:
-            score += 0.15
+        score = len(pt & tt) / min(len(pt), len(tt))
+        if t["time"] == post["time"]:
+            score += 0.1
         if score > best_score:
-            best, best_score = p, score
-    if best is not None and best_score >= 0.6:
-        return best
-    return None
+            best, best_score = t["hall"], score
+    return best if best_score >= 0.6 else ""
+
+
+def paragraphs(lines: list[str]) -> list[str]:
+    """Строки поста → абзацы: пустая строка разделяет, пункты списка — отдельные строки."""
+    out: list[str] = []
+    buf: list[str] = []
+    for line in lines:
+        if not line.strip():
+            if buf:
+                out.append(" ".join(buf).strip())
+                buf = []
+            continue
+        if line.startswith("— "):
+            if buf:
+                out.append(" ".join(buf).strip())
+                buf = []
+            out.append(line.strip())
+            continue
+        buf.append(line.strip())
+    if buf:
+        out.append(" ".join(buf).strip())
+    return [p for p in out if p]
+
+
+def clean_title(raw: str) -> str:
+    """Заголовок поста в архиве — markdown-ссылка; оставить текст."""
+    m = re.match(r"\[([^\]]+)\]\(([^)]+)\)", raw.strip())
+    return m.group(1).strip() if m else raw.strip()
 
 
 def main() -> None:
     check = "--check" in sys.argv
-    talks = parse_talks()
+    halls = talk_index()
     posts = parse_posts()
-    for t in talks:
-        p = match_post(t, posts)
-        t["post"] = ({"messageId": p["messageId"],
-                      "url": f"https://t.me/ai_n_ns/{p['messageId']}"} if p else None)
+
+    talks: list[dict] = []
+    for p in posts:
+        hall = match_hall(p, halls)
+        body = paragraphs(p["body"])
+        body = [b for b in body if not re.match(r"^\*\*\[.+\]\(.+\)\*\*$", b)]
+        if body and body[0].startswith(p["speaker"]):
+            body = body[1:]
+        tags = p.get("tags", [])
+        talks.append({
+            "slug": f"{hall or 'talk'}-{p['t0'].replace(':', '')}-{p['messageId']}",
+            "title": clean_title(p["title"]),
+            "speaker": p["speaker"],
+            "org": p["org"],
+            "hall": hall,
+            "hallLabel": HALLS.get(hall, "Конференция"),
+            "time": p["time"],
+            "messageId": p["messageId"],
+            "url": f"https://t.me/ai_n_ns/{p['messageId']}",
+            "bodyHtml": body_to_html(body),
+            "preview": next((re.sub(r"^—\s*", "", re.sub(r"[`*]", "", b))
+                             for b in body if len(b) > 120),
+                             re.sub(r"^—\s*", "", re.sub(r"[`*]", "", body[0])) if body else "")[:300],
+            "tags": tags[:6],
+        })
+    talks.sort(key=lambda t: (t["time"].split("–")[0], t["hall"] != "big"))
 
     now = datetime.now(MSK)
     live = now.date().isoformat() == "2026-10-17" and now.hour * 60 + now.minute < 17 * 60 + 25
     data = {
         "event": {
             "title": "AI Driver & RecSys 2026",
-            "subtitle": "Конференция Сбера по рекомендательным системам: разборы докладов по записи",
+            "subtitle": "Посты канала @ai_n_ns о докладах конференции — так, как они опубликованы",
             "date": "17 октября 2026",
             "place": "Офис Сбера, Москва, Кутузовский пр-т 32",
             "programUrl": "https://developers.sber.ru/kak-v-sbere/events/ai_driver_october_2026",
             "channelUrl": "https://t.me/ai_n_ns",
-            "sourceNote": "Разборы собраны по собственной записи двух потоков и её расшифровке "
-                          "(faster-whisper large-v3-turbo). Числа — только те, что прозвучали в докладе.",
+            "sourceNote": "Тексты постов — из канала @ai_n_ns, без правок; исходная запись докладов "
+                          "расшифрована faster-whisper large-v3-turbo, числа — только прозвучавшие.",
         },
         "updated": now.isoformat(timespec="minutes"),
         "live": live,
         "stats": {
             "talks": len(talks),
-            "halls": len({t["hall"] for t in talks}),
-            "withPost": sum(1 for t in talks if t["post"]),
+            "halls": len({t["hall"] for t in talks if t["hall"]}),
+            "withPost": len(talks),
         },
         "talks": talks,
     }
     if check:
         print(json.dumps(data["stats"], ensure_ascii=False))
         for t in talks:
-            print(f"{t['slug']:11} {t['time']:13} {t['hallLabel']:12} "
-                  f"items={len(t['items']):2} post={t['post']['messageId'] if t['post'] else '—':>5} "
-                  f"{t['title'][:60]}")
+            print(f"{t['messageId']:>5} {t['time']:13} {t['hallLabel']:12} "
+                  f"{len(t['bodyHtml']):5}b {t['title'][:60]}")
         return
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print(f"ok: {len(talks)} докладов, {data['stats']['withPost']} с постом → {OUT}")
+    print(f"ok: {len(talks)} постов → {OUT}")
 
 
 if __name__ == "__main__":

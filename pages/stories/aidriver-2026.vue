@@ -133,18 +133,15 @@ useHead(() => ({
         <p class="conf-speaker">
           {{ t.speaker }}<template v-if="t.org"> · {{ t.org }}</template>
         </p>
-        <p class="conf-preview">{{ t.lead }}</p>
+        <p class="conf-preview">{{ t.preview }}</p>
 
         <details class="conf-more">
-          <summary>Полный разбор</summary>
-          <div v-for="it in t.items" :key="it.label" class="conf-item">
-            <h3>{{ it.label }}</h3>
-            <p v-html="it.html"></p>
-          </div>
+          <summary>Текст поста</summary>
+          <div class="conf-body" v-html="t.bodyHtml"></div>
         </details>
 
         <div class="conf-links">
-          <a v-if="t.post" :href="t.post.url" target="_blank" rel="noopener">Пост в канале →</a>
+          <a :href="t.url" target="_blank" rel="noopener">Пост в канале →</a>
           <span v-if="t.tags && t.tags.length" class="conf-tags">
             <span v-for="tag in t.tags" :key="tag" class="conf-tag">#{{ tag }}</span>
           </span>
@@ -372,19 +369,24 @@ useHead(() => ({
 .conf-more[open] summary::after {
   content: "−";
 }
-.conf-item h3 {
-  margin: var(--space-md) 0 var(--space-xs);
-  color: var(--color-muted);
-  font-size: var(--text-label);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.conf-item p {
-  margin: 0;
+.conf-body {
+  padding-top: var(--space-xs);
   font-size: var(--text-body-sm);
 }
-.conf-item :deep(code) {
+.conf-body :deep(p) {
+  margin: 0 0 var(--space-sm);
+}
+.conf-body :deep(ul) {
+  margin: 0 0 var(--space-sm);
+  padding-left: 1.1rem;
+}
+.conf-body :deep(li) {
+  margin-bottom: var(--space-xs);
+}
+.conf-body :deep(a) {
+  color: var(--color-accent);
+}
+.conf-body :deep(code) {
   padding: 1px 5px;
   border-radius: 6px;
   background: var(--color-tint);
